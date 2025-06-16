@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cloud Task Dashboard</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f9f9f9; }
+    h1 { color: #333; }
+    section { margin-bottom: 30px; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #eee; }
+    input, select, button { margin-top: 8px; padding: 6px; }
+    .btn-delete { color: white; background-color: red; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <h1>🧠 Cloud Task Dashboard</h1>
+
+  <!-- ✅ Add New Task -->
+  <section>
+    <h2>➕ Upload New Task</h2>
+    <form id="taskForm" enctype="multipart/form-data">
+      <label>Code File:</label><br/>
+      <input type="file" name="codeFile" required /><br/>
+
+      <label>Inputs (comma-separated):</label><br/>
+      <input type="text" name="inputs" required /><br/>
+
+      <label>Required Device Count:</label><br/>
+      <input type="number" name="requiredDeviceCount" value="2" min="1" /><br/>
+
+      <label>Priority:</label><br/>
+      <input type="number" name="priority" value="1" min="1" /><br/>
+
+      <button type="submit">📤 Upload Task</button>
+    </form>
+
+    <p id="uploadResult"></p>
+  </section>
+
+  <!-- ✅ Devices Table -->
+  <section>
+    <h2>💻 Connected Devices</h2>
+    <table id="devicesTable">
+      <thead>
+        <tr>
+          <th>Device ID</th>
+          <th>Status</th>
+          <th>Last Heartbeat</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- ✅ Tasks Table -->
+  <section>
+    <h2>📦 Tasks</h2>
+    <table id="tasksTable">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Status</th>
+          <th>Inputs</th>
+          <th>Results</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- ✅ Input Status Table -->
+  <section>
+    <h2>📊 Input Execution Status</h2>
+    <table id="inputStatusTable">
+      <thead>
+        <tr>
+          <th>Task ID</th>
+          <th>Input</th>
+          <th>Assigned Device</th>
+          <th>Result</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <script>
+    const BACKEND = location.origin;
+
+    async function loadDevices() {
+      const res = await fetch(`${BACKEND}/devices`);
+      const devices = await res.json();
+      const tbody = document.querySelector('#devicesTable tbody');
+      tbody.innerHTML = '';
+      devices.forEach(d => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${d.deviceId}</td>
+          <td>${d.status}</td>
+          <td>${new Date(d.lastHeartbeat).toLocaleString()}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function loadTasks() {
+      const res = await fetch(`${BACKEND}/all-tasks`);
+      const tasks = await res.json();
+      const taskTbody = document.querySelector('#tasksTable tbody');
+      const inputTbody = document.querySelector('#inputStatusTable tbody');
+
+      taskTbody.innerHTML = '';
+      inputTbody.innerHTML = '';
+
+      tasks.forEach(t => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${t._id}</td>
+          <td>${t.status}</td>
+          <td>${t.inputs.length}</td>
+          <td>${t.result ? t.result.length : 0}</td>
+          <td><button class="btn-delete" onclick="deleteTask('${t._id}')">Delete</button></td>
+        `;
+        taskTbody.appendChild(tr);
+
+        t.inputs.forEach(input => {
+          const result = (t.result || []).find(r => r.input === input.input);
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${t._id}</td>
+            <td>${input.input}</td>
+            <td>${input.deviceId || '❌ Not assigned'}</td>
+            <td>${result ? result.output : '⏳ Pending'}</td>
+          `;
+          inputTbody.appendChild(row);
+        });
+      });
+    }
+
+    async function deleteTask(taskId) {
+      const confirmDelete = confirm('Are you sure you want to delete this task?');
+      if (!confirmDelete) return;
+
+      await fetch(`${BACKEND}/delete-task/${taskId}`, { method: 'DELETE' });
+      loadTasks();
+    }
+
+    document.getElementById('taskForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const formData = new FormData();
+
+      const inputs = form.inputs.value.split(',').map(i => i.trim());
+      formData.append('codeFile', form.codeFile.files[0]);
+      formData.append('inputs', JSON.stringify(inputs));
+      formData.append('requiredDeviceCount', form.requiredDeviceCount.value);
+      formData.append('priority', form.priority.value);
+
+      const res = await fetch(`${BACKEND}/upload-task`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await res.json();
+      document.getElementById('uploadResult').textContent = result.message || result.error;
+
+      loadTasks();
+    });
+
+    loadDevices();
+    loadTasks();
+    setInterval(loadDevices, 5000);
+    setInterval(loadTasks, 10000);
+  </script>
+
+</body>
+</html>
