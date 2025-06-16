@@ -12,11 +12,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/task-files', express.static('tasks'));
-app.use('/', express.static('dashboard')); // واجهة المتابعة
+app.use('/', express.static('dashboard')); 
 
 const PORT = process.env.PORT || 5000;
 
-// ✅ الاتصال بقاعدة البيانات
+
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -24,14 +24,14 @@ mongoose.connect(process.env.MONGO_URI, {
   .then(() => console.log("✅ Connected to MongoDB"))
   .catch((err) => console.error("❌ MongoDB error:", err));
 
-// ✅ إعداد رفع الملفات (كود التاسك)
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'tasks'),
   filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
 });
 const upload = multer({ storage });
 
-// ✅ رفع تاسك جديدة
+
 app.post('/upload-task', upload.single('codeFile'), async (req, res) => {
   try {
     const { requiredDeviceCount, priority, inputs } = req.body;
@@ -60,14 +60,14 @@ app.get('/all-tasks', async (req, res) => {
   res.json(tasks);
 });
 
-// ✅ تفاصيل تاسك واحدة
+
 app.get('/task/:id', async (req, res) => {
   const task = await Task.findById(req.params.id);
   if (!task) return res.status(404).json({ error: 'Task not found' });
   res.json(task);
 });
 
-// ✅ تسجيل جهاز جديد
+
 app.post('/register-device', async (req, res) => {
   const { deviceId } = req.body;
   if (!deviceId) return res.status(400).json({ error: 'deviceId is required' });
@@ -82,7 +82,7 @@ app.post('/register-device', async (req, res) => {
   res.json({ message: 'Device already registered', device });
 });
 
-// ✅ طلب تاسك
+
 app.get('/get-task/:deviceId', async (req, res) => {
   const deviceId = req.params.deviceId;
   const device = await Device.findOne({ deviceId });
@@ -133,7 +133,7 @@ app.get('/get-task/:deviceId', async (req, res) => {
   });
 });
 
-// ✅ تسليم نتيجة
+
 app.post('/submit-result', async (req, res) => {
   const { taskId, deviceId, input, output } = req.body;
   if (!taskId || !deviceId || !input || output === undefined) {
@@ -187,13 +187,13 @@ app.post('/heartbeat', async (req, res) => {
   res.json({ message: '💓 Heartbeat received' });
 });
 
-// ✅ عرض الأجهزة
+
 app.get('/devices', async (req, res) => {
   const devices = await Device.find().sort({ deviceId: 1 });
   res.json(devices);
 });
 
-// ✅ حالة جهاز واحد
+
 app.get('/device-status/:deviceId', async (req, res) => {
   const { deviceId } = req.params;
   const device = await Device.findOne({ deviceId });
@@ -201,7 +201,8 @@ app.get('/device-status/:deviceId', async (req, res) => {
   res.json({ status: device.status });
 });
 
-// ✅ مراقبة الأجهزة المعطلة والمتوقفة
+
+
 setInterval(async () => {
   const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
   const stuckTime = new Date(Date.now() - 2 * 60 * 1000);
@@ -281,7 +282,7 @@ setInterval(async () => {
   }
 }, 60 * 1000);
 
-// ✅ تشغيل السيرفر
+
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
